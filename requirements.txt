@@ -1,0 +1,15 @@
+wget
+matplotlib
+pandas
+tqdm
+attrdict
+numpy
+requests
+seaborn
+ipython
+Pillow
+colored
+torch==1.6.0
+torchvision==0.7.0
+robustness==1.2.1.post1
+torch_lucent==0.1.4
