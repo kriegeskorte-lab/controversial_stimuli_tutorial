@@ -40,5 +40,7 @@ Please cite ([Golan, Raju, & Kriegeskorte, 2020](https://www.pnas.org/cgi/doi/10
   year         = 2020,
   publisher    = {Zenodo},
   version      = {1.0.0},
+  doi          = {10.5281/zenodo.4291135},
+  url          = {https://doi.org/10.5281/zenodo.4291135}
 }
 ```
