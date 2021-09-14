@@ -82,7 +82,7 @@ def leave_failure_flag(target_fpath):
 def prepare_optimization_parameters(optim_method):
     """ return preset optimization parameters"""
 
-    optimization_kwd={'smooth_min_kind':'logsoftmax',
+    optimization_kwd={'readout_type':'logsoftmax',
                'pytorch_optimizer':'Adam',
                'optimizer_kwargs':{'lr':5e-2,'betas':(0.9, 0.999),'weight_decay':0,'eps':1e-8},
                'return_PIL_images':True,

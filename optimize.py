@@ -18,7 +18,7 @@ def smooth_minimum(input,dim=-1,alpha=1.0):
   """ A smooth minimum based on inverted logsumexp with sharpness parameter alpha. alpha-->inf approaches hard minimum"""
   return -1/alpha*torch.logsumexp(-alpha*input,dim=dim) # https://en.wikipedia.org/wiki/LogSumExp
 
-def controversiality_score(im,model_1,model_2,class_1_name,class_2_name,alpha=1.0,smooth_min_kind='logsoftmax',verbose=True):
+def controversiality_score(im,model_1,model_2,class_1_name,class_2_name,alpha=1.0,readout_type='logsoftmax',verbose=True):
   """ Evaluate the smooth and hard controversiality scores of an NCHWC image tensor according to two models and two classes
 
   Args:
@@ -26,7 +26,7 @@ def controversiality_score(im,model_1,model_2,class_1_name,class_2_name,alpha=1.
     model1, model2 (tuple): model objects, e.g., TVPretrainedModel, see above.
     class_1_name, class_2_name (str): Target classes. The controversiality score is high when model 1 detects class 1 (but not class 2) and model 2 detects class 2 (but not class 1).
     alpha (float): smooth controversiality score sharpness.
-    smooth_min_kind (str): 'logits' for models with sigmoid readout, 'logsoftmax' for models with softmax readout.
+    readout_type (str): 'logits' for models with sigmoid readout, 'logsoftmax' for models with softmax readout.
     verbose (boolean): if True (default), shows image probabilities (averaged across images if a batch is provided).
 
   Returns:
@@ -50,14 +50,14 @@ def controversiality_score(im,model_1,model_2,class_1_name,class_2_name,alpha=1.
     model_2_logits=model_2_logits.to(model_1.device)
     model_2_probabilities=model_2_probabilities.to(model_1.device)
   #   print("logits moved to gpu:",time.perf_counter()-t0)
-  if smooth_min_kind=='logits':
+  if readout_type=='logits':
     if class_1_name != class_2_name:
       # smooth minimum of logits - this is the score we optimized in Golan et al., 2020 (Eq. 4).
       input=torch.stack([model_1_logits[:,m1_class1_ind],-model_2_logits[:,m2_class1_ind],
                         -model_1_logits[:,m1_class2_ind],model_2_logits[:,m2_class2_ind]],dim=-1)
     else: # simple activation maximization of logits for the non-controversial case
       input=torch.stack([model_1_logits[:,m1_class1_ind],model_2_logits[:,m2_class2_ind]],dim=-1)
-  elif smooth_min_kind=='logsoftmax':
+  elif readout_type=='logsoftmax':
     # However, for softmax readout (unlike sigmoid readout), manipulating class-specific logits doesn't fully control output probabilities
     # (since all of the logits contribute to the resulting probabilities). Therefore, for softmax models, we target the logsoftmax scores.
     # This is essentially a smooth variant of Eq. 1 in Golan et al., 2020.
@@ -66,7 +66,7 @@ def controversiality_score(im,model_1,model_2,class_1_name,class_2_name,alpha=1.
     model_2_logsoftmax=logsoftmax(model_2_logits)
     input=torch.stack([model_1_logsoftmax[:,m1_class1_ind],model_2_logsoftmax[:,m2_class2_ind]],dim=-1)
   else:
-     raise ValueError("smooth_min_kind must be logits or logsoftmax")
+     raise ValueError("readout_type must be logits or logsoftmax")
 
   smooth_controversiality_score = smooth_minimum(input,alpha=alpha,dim=-1)
 
@@ -86,7 +86,7 @@ def controversiality_score(im,model_1,model_2,class_1_name,class_2_name,alpha=1.
 
 def optimize_controversial_stimuli(model_1,model_2,class_1,class_2,im_size=(4,3,256,256),
                                    pytorch_optimizer='Adam',optimizer_kwargs={'lr':5e-2,'betas':(0.9, 0.999),'weight_decay':0,'eps':1e-8},
-                                   smooth_min_kind='logsoftmax',random_seed=0,
+                                   readout_type='logsoftmax',random_seed=0,
                                    max_steps=1000,max_consecutive_steps_without_pixel_change=10,
                                    return_PIL_images=True,verbose=True):
   """Optimize controversial stimuli with respect to two models and two classes.
@@ -99,7 +99,7 @@ def optimize_controversial_stimuli(model_1,model_2,class_1,class_2,im_size=(4,3,
   im_size (tuple): Specify the optimized image tensor size as (N,C,H,W). If N is greater than 1, multiple images are optimized in parallel. Note that optimizing batches might result in different convergence-based stopping compared to optimizing one image at a time.
   pytorch_optimizer (str or class): either the name of a torch.optim class or an optimizer class.
   optimizer_kwargs (dict): keywords passed to the optimizer
-  smooth_min_kind (str): 'logits' for models with sigmoid readout, 'logsoftmax' for models with softmax readout.
+  readout_type (str): 'logits' for models with sigmoid readout, 'logsoftmax' for models with softmax readout.
   random_seed (int): sets the random seed for PyTorch.
   max_steps (int): maximal number of optimization steps
   max_consecutive_steps_without_pixel_change (int): if the image hasn't changed for this number of steps, stop
@@ -136,15 +136,15 @@ def optimize_controversial_stimuli(model_1,model_2,class_1,class_2,im_size=(4,3,
 
   # First, we use the *inverse sigmoid* to stretch the initial image:
   inverse_sigmoid=lambda p : torch.log(p/(1-p))
-  x=inverse_sigmoid(initial_im)
-  x.requires_grad=True
+  z=inverse_sigmoid(initial_im)
+  z.requires_grad=True
 
   # initialize image optimizer
   if isinstance(pytorch_optimizer, str):
     OptimClass=getattr(torch.optim,pytorch_optimizer)
   else:
     OptimClass=pytorch_optimizer
-  optimizer = OptimClass(params=[x], **optimizer_kwargs)
+  optimizer = OptimClass(params=[z], **optimizer_kwargs)
 
   previous_im=None
 
@@ -156,10 +156,10 @@ def optimize_controversial_stimuli(model_1,model_2,class_1,class_2,im_size=(4,3,
   for i_step in range(max_steps):
 
     optimizer.zero_grad()
-    cur_im=torch.sigmoid(x) # compress x back to [0,1] so it's a real image.
+    x=torch.sigmoid(z) # compress x back to [0,1] so it's a real image.
     smooth_controversiality_score, hard_controversiality_score, info=controversiality_score(
-        cur_im,model_1,model_2,class_1,class_2,alpha=alpha,
-        smooth_min_kind=smooth_min_kind,verbose=verbose)
+        x,model_1,model_2,class_1,class_2,alpha=alpha,
+        readout_type=readout_type,verbose=verbose)
 
     loss=-smooth_controversiality_score # we would like to MAXIMIZE controversiality, therefore the minus.
     loss=loss.sum() # when multiple stimuli are optimized, make the loss scalar by summation
@@ -173,7 +173,7 @@ def optimize_controversial_stimuli(model_1,model_2,class_1,class_2,im_size=(4,3,
 
     # monitor the magnitude of image change.
     if previous_im is not None:
-        abs_change=(cur_im-previous_im).abs()*255.0 # change on a 0-255 intesity scale
+        abs_change=(x-previous_im).abs()*255.0 # change on a 0-255 intesity scale
         max_abs_change=abs_change.max().item()
         if (max_abs_change)<0.5: # check if the maximal absolute change across pixels is less than half an intesity level.
           consecutive_steps_without_pixel_change+=1
@@ -183,7 +183,7 @@ def optimize_controversial_stimuli(model_1,model_2,class_1,class_2,im_size=(4,3,
         else:
           consecutive_steps_without_pixel_change=0
 
-    previous_im=cur_im.detach().clone()
+    previous_im=x.detach().clone()
 
   if converged:
     verboseprint('converged (n_steps={})'.format(i_step+1))
@@ -191,27 +191,27 @@ def optimize_controversial_stimuli(model_1,model_2,class_1,class_2,im_size=(4,3,
     verboseprint('max steps achieved (n_steps={})'.format(i_step+1))
 
   # Quantize intesity. Since we plan to show these images to humans, we don't want to take into account intensity levels that cannot be displayed.
-  cur_im=(cur_im.detach()*255.0).round()/255.0
+  x=(x.detach()*255.0).round()/255.0
 
   # Evaluate final controversiality score, using the quantized image.
-  _,hard_controversiality_score,_=controversiality_score(cur_im,model_1,model_2,class_1,class_2,verbose=False)
+  _,hard_controversiality_score,_=controversiality_score(x,model_1,model_2,class_1,class_2,verbose=False)
   hard_controversiality_score=hard_controversiality_score.detach().cpu().numpy().tolist() # convert a vector tensor to list of floats
 
   verboseprint('controversiality score: '+', '.join('{:0.2f}'.format(f) for f in hard_controversiality_score))
 
   if return_PIL_images:
-    numpy_controversial_stimuli=cur_im.detach().cpu().numpy().transpose([0,2,3,1]) # NCHW -> NHWC
+    numpy_controversial_stimuli=x.detach().cpu().numpy().transpose([0,2,3,1]) # NCHW -> NHWC
     numpy_controversial_stimuli=(numpy_controversial_stimuli*255.0).astype(np.uint8)
     PIL_controversial_stimuli=[]
     for i in range(len(numpy_controversial_stimuli)):
       PIL_controversial_stimuli.append(Image.fromarray(numpy_controversial_stimuli[i]))
-    return cur_im.detach(), PIL_controversial_stimuli, hard_controversiality_score
+    return x.detach(), PIL_controversial_stimuli, hard_controversiality_score
   else:
-    return cur_im.detach(), hard_controversiality_score
+    return x.detach(), hard_controversiality_score
 
 def optimize_controversial_stimuli_with_lucent(model_1,model_2,class_1,class_2,transforms,param_f,
                                                pytorch_optimizer='Adam',optimizer_kwargs={'lr':5e-2,'betas':(0.9, 0.999),'weight_decay':0,'eps':1e-8},
-                                               smooth_min_kind='logsoftmax',random_seed=0,
+                                               readout_type='logsoftmax',random_seed=0,
                                                max_steps=1000,max_consecutive_steps_without_pixel_change=10,
                                                return_PIL_images=True,verbose=True):
   """Optimize controversial stimuli with respect to two models and two classes using Lucent image parameterizations and transformations.
@@ -229,7 +229,7 @@ def optimize_controversial_stimuli_with_lucent(model_1,model_2,class_1,class_2,t
   transforms (list): a list of lucent.optvis.transform transformation (pass [] for no transformations).
   pytorch_optimizer (str or class): either the name of a torch.optim class or an optimizer class.
   optimizer_kwargs (dict): keywords passed to the optimizer
-  smooth_min_kind (str): 'logits' for models with sigmoid readout, 'logsoftmax' for models with softmax readout.
+  readout_type (str): 'logits' for models with sigmoid readout, 'logsoftmax' for models with softmax readout.
   random_seed (int): sets the random seed for PyTorch.
   max_steps (int): maximal number of optimization steps
   max_consecutive_steps_without_pixel_change (int): if the image hasn't changed for this number of steps, stop
@@ -285,14 +285,14 @@ def optimize_controversial_stimuli_with_lucent(model_1,model_2,class_1,class_2,t
   for i_step in range(max_steps):
 
     optimizer.zero_grad()
-    cur_im=image_f() # convert params to an image tensor
+    x=image_f() # convert params to an image tensor
 
     # apply stochastic transformations
-    transformed_im=transform_f(cur_im.to(lucent_transform_device)) # apply stochastic transformations
+    transformed_im=transform_f(x.to(lucent_transform_device)) # apply stochastic transformations
 
     # calculate controversiality score using the transformed image
     smooth_controversiality_score, hard_controversiality_score,info=controversiality_score(
-        transformed_im,model_1,model_2,class_1,class_2,alpha=alpha,smooth_min_kind=smooth_min_kind,verbose=verbose)
+        transformed_im,model_1,model_2,class_1,class_2,alpha=alpha,readout_type=readout_type,verbose=verbose)
 
     loss=-smooth_controversiality_score # we would like to MAXIMIZE controversiality.
     loss=loss.sum() # when multiple stimuli are optimized, make the loss scalar by summation
@@ -306,7 +306,7 @@ def optimize_controversial_stimuli_with_lucent(model_1,model_2,class_1,class_2,t
 
     # monitor the magnitude of image change.
     if previous_im is not None:
-      abs_change=(cur_im-previous_im).abs()*255.0 # change on a 0-255 intesity scale
+      abs_change=(x-previous_im).abs()*255.0 # change on a 0-255 intesity scale
       max_abs_change=abs_change.max().item()
       if (max_abs_change)<0.5: # check if the maximal absolute change across pixels is less than half an intesity level.
         consecutive_steps_without_pixel_change+=1
@@ -316,7 +316,7 @@ def optimize_controversial_stimuli_with_lucent(model_1,model_2,class_1,class_2,t
       else:
         consecutive_steps_without_pixel_change=0
 
-    previous_im=cur_im.detach().clone()
+    previous_im=x.detach().clone()
 
   if converged:
     verboseprint('converged (n_steps={})'.format(i_step+1))
@@ -324,23 +324,23 @@ def optimize_controversial_stimuli_with_lucent(model_1,model_2,class_1,class_2,t
     verboseprint('max steps achieved (n_steps={})'.format(i_step+1))
 
   # Quantize intesity. Since we plan to show these images to humans, we don't want to take into account intensity levels that cannot be displayed.
-  cur_im=(cur_im.detach()*255.0).round()/255.0
+  x=(x.detach()*255.0).round()/255.0
 
   # Evaluate final controversiality score, using the quantized image. Note that this image is not stochastically transformed.
-  _,hard_controversiality_score,_=controversiality_score(cur_im,model_1,model_2,class_1,class_2,verbose=False)
+  _,hard_controversiality_score,_=controversiality_score(x,model_1,model_2,class_1,class_2,verbose=False)
   hard_controversiality_score=hard_controversiality_score.detach().cpu().numpy().tolist() # convert a vector tensor to list of floats
 
   verboseprint('controversiality score: '+', '.join('{:0.2f}'.format(f) for f in hard_controversiality_score))
 
   if return_PIL_images:
-    numpy_controversial_stimuli=cur_im.detach().cpu().numpy().transpose([0,2,3,1]) # NCHW -> NHWC
+    numpy_controversial_stimuli=x.detach().cpu().numpy().transpose([0,2,3,1]) # NCHW -> NHWC
     numpy_controversial_stimuli=(numpy_controversial_stimuli*255.0).astype(np.uint8)
     PIL_controversial_stimuli=[]
     for i in range(len(numpy_controversial_stimuli)):
       PIL_controversial_stimuli.append(Image.fromarray(numpy_controversial_stimuli[i]))
-    return cur_im.detach(), PIL_controversial_stimuli, hard_controversiality_score
+    return x.detach(), PIL_controversial_stimuli, hard_controversiality_score
   else:
-    return cur_im.detach(), hard_controversiality_score
+    return x.detach(), hard_controversiality_score
 
 def make_GANparam(batch=1, sd=1,latent_layer='pool5',gan_device=None):
   """ generate param_f for an alexnet-latent-representation inverting GAN.
