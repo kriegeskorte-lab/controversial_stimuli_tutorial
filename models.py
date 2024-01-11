@@ -138,26 +138,27 @@ class robustness_pretrained_model(torch.nn.Module):
     return torch.nn.Softmax(dim=-1)(logits)
 
 # subclasses for particular models
+# subclasses for particular models
 class Resnet_50_l2_eps1(robustness_pretrained_model):
     def __init__(self):
-       self=super().__init__(model_name='resnet50_l1_eps3',arch='resnet50',dataset='ImageNet',model_url='https://robustnessws4285631339.blob.core.windows.net/public-models/robust_imagenet/resnet50_l2_eps1.ckpt?sv=2019-10-10&ss=b&srt=sco&sp=rlx&se=2021-10-05T15:06:23Z&st=2020-06-10T07:06:23Z&spr=https&sig=Rwwsg9yfcSrbNLvxse%2F32XOy7ERWSLXMz9Ebka4pS20%3D',input_size=224)
+       self=super().__init__(model_name='resnet50_l2_eps1',arch='resnet50',dataset='ImageNet',model_url='https://huggingface.co/madrylab/robust-imagenet-models/resolve/main/resnet50_l2_eps1.ckpt',input_size=224)
 
 class Resnet_50_l2_eps3(robustness_pretrained_model):
     def __init__(self):
-       self=super().__init__(model_name='resnet50_l2_eps3',arch='resnet50',dataset='ImageNet',model_url='https://robustnessws4285631339.blob.core.windows.net/public-models/robust_imagenet/resnet50_l2_eps3.ckpt?sv=2019-10-10&ss=b&srt=sco&sp=rlx&se=2021-10-05T15:06:23Z&st=2020-06-10T07:06:23Z&spr=https&sig=Rwwsg9yfcSrbNLvxse%2F32XOy7ERWSLXMz9Ebka4pS20%3D',input_size=224)
+       self=super().__init__(model_name='resnet50_l2_eps3',arch='resnet50',dataset='ImageNet',model_url='https://huggingface.co/madrylab/robust-imagenet-models/resolve/main/resnet50_l2_eps3.ckpt',input_size=224)
 
 class Resnet_50_l2_eps5(robustness_pretrained_model):
     def __init__(self):
-       self=super().__init__(model_name='resnet50_l2_eps5',arch='resnet50',dataset='ImageNet',model_url='https://robustnessws4285631339.blob.core.windows.net/public-models/robust_imagenet/resnet50_l2_eps5.ckpt?sv=2019-10-10&ss=b&srt=sco&sp=rlx&se=2021-10-05T15:06:23Z&st=2020-06-10T07:06:23Z&spr=https&sig=Rwwsg9yfcSrbNLvxse%2F32XOy7ERWSLXMz9Ebka4pS20%3D',input_size=224)
+       self=super().__init__(model_name='resnet50_l2_eps5',arch='resnet50',dataset='ImageNet',model_url='https://huggingface.co/madrylab/robust-imagenet-models/resolve/main/resnet50_l2_eps5.ckpt',input_size=224)
 
 class Wide_Resnet50_2_l2_eps1(robustness_pretrained_model):
     def __init__(self):
-      self=super().__init__(model_name='wide_Resnet50_2_l2_eps3',arch='wide_resnet50_2',dataset='ImageNet',model_url='https://robustnessws4285631339.blob.core.windows.net/public-models/robust_imagenet/wide_resnet50_2_l2_eps1.ckpt?sv=2019-10-10&ss=b&srt=sco&sp=rlx&se=2021-10-05T15:06:23Z&st=2020-06-10T07:06:23Z&spr=https&sig=Rwwsg9yfcSrbNLvxse%2F32XOy7ERWSLXMz9Ebka4pS20%3D',input_size=224)
+      self=super().__init__(model_name='wide_Resnet50_2_l2_eps1',arch='wide_resnet50_2',dataset='ImageNet',model_url='https://huggingface.co/madrylab/robust-imagenet-models/resolve/main/wide_resnet50_2_l2_eps1.ckpt',input_size=224)
 
 class Wide_Resnet50_2_l2_eps3(robustness_pretrained_model):
     def __init__(self):
-      self=super().__init__(model_name='wide_Resnet50_2_l2_eps3',arch='wide_resnet50_2',dataset='ImageNet',model_url='https://robustnessws4285631339.blob.core.windows.net/public-models/robust_imagenet/wide_resnet50_2_l2_eps3.ckpt?sv=2019-10-10&ss=b&srt=sco&sp=rlx&se=2021-10-05T15:06:23Z&st=2020-06-10T07:06:23Z&spr=https&sig=Rwwsg9yfcSrbNLvxse%2F32XOy7ERWSLXMz9Ebka4pS20%3D',input_size=224)
+      self=super().__init__(model_name='wide_Resnet50_2_l2_eps3',arch='wide_resnet50_2',dataset='ImageNet',model_url='https://huggingface.co/madrylab/robust-imagenet-models/resolve/main/wide_resnet50_2_l2_eps3.ckpt',input_size=224)
 
 class Wide_Resnet50_2_l2_eps5(robustness_pretrained_model):
     def __init__(self):
-      self=super().__init__(model_name='wide_Resnet50_2_l2_eps5',arch='wide_resnet50_2',dataset='ImageNet',model_url='https://robustnessws4285631339.blob.core.windows.net/public-models/robust_imagenet/wide_resnet50_2_l2_eps5.ckpt?sv=2019-10-10&ss=b&srt=sco&sp=rlx&se=2021-10-05T15:06:23Z&st=2020-06-10T07:06:23Z&spr=https&sig=Rwwsg9yfcSrbNLvxse%2F32XOy7ERWSLXMz9Ebka4pS20%3D',input_size=224)
+      self=super().__init__(model_name='wide_Resnet50_2_l2_eps5',arch='wide_resnet50_2',dataset='ImageNet',model_url='https://huggingface.co/madrylab/robust-imagenet-models/resolve/main/wide_resnet50_2_l2_eps5.ckpt',input_size=224)

@@ -10,19 +10,31 @@ The tutorial is contained in a Jupyter notebook:\
 [Synthesizing_Controversial_Stimuli_Tutorial.ipynb](https://github.com/kriegeskorte-lab/controversial_stimuli_tutorial/blob/main/Synthesizing_Controversial_Stimuli_Tutorial.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kriegeskorte-lab/controversial_stimuli_tutorial/blob/main/Synthesizing_Controversial_Stimuli_Tutorial.ipynb) [![nbviewer](https://raw.githubusercontent.com/jupyter/design/master/logos/Badges/nbviewer_badge.svg)](https://nbviewer.jupyter.org/github/kriegeskorte-lab/controversial_stimuli_tutorial/blob/main/Synthesizing_Controversial_Stimuli_Tutorial.ipynb)
 
 #### Installation:
-If you want to run the notebook or the Python code on your own machine (i.e., not on Google Colab), you would have to install the dependencies. The main non-trivial dependency is PyTorch 1.6 (≥1.7 is not supported by Kornia 0.4). On most systems, this should work:
+If you want to run the notebook or the Python code on your own machine (i.e., not on Google Colab), you would have to install the dependencies.
+
+Start with creating a conda environment:
 ```
 git clone https://github.com/kriegeskorte-lab/controversial_stimuli_tutorial
 cd controversial_stimuli_tutorial
-conda create -n contro_stim_env python==3.7
+conda create -n contro_stim_env python==3.11
 conda activate contro_stim_env
-conda install pytorch==1.6.0 torchvision==0.7.0 cudatoolkit=10.1 -c pytorch 
+```
+
+Proceed with installing PyTorch according to the instructions on the [PyTorch website](https://pytorch.org/get-started/locally/). This code was tested on PyTorch 1.6 to 2.1.2, and Kornia 0.4.1 to 0.7.1.
+
+Next, install the remaining dependencies:
+
+```
+conda install pytables
 pip install -r requirements.txt
+```
+If you want to run the notebook, you would also need to install JupyterLab:
+```
 conda install -c conda-forge jupyterlab
 jupyter lab Synthesizing_Controversial_Stimuli_Tutorial.ipynb
 ```
 #### Batch stimulus synthesis
-This repository also includes Python code for synthesizing controversial stimuli in a batch. 
+This repository also includes Python code for synthesizing controversial stimuli in a batch.
 After installing the dependencies, you can synthesize all of the images that appear in the figure above by running:
 ```
 python batch_optimize.py --experiments cat_vs_dog --optimization_methods CPPN --max_steps=1000
