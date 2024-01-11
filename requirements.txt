@@ -11,6 +11,6 @@ Pillow
 colored
 torch>=1.6.0
 torchvision
-robustness @ git+https://github.com/MadryLab/robustness.git
+robustness @ git+https://github.com/brainsandmachines/robustness
 torch_lucent @ git+https://github.com/brainsandmachines/lucent.git
 requests
